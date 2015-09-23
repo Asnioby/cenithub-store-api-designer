@@ -10,11 +10,19 @@
 
 ## CENITHub Store Confuguration
 
-1. Create tenant in CenitSaaS
-2. Sing In and go to Cenithub
+1. Create tenant in CenitSaaS [Sign Up](https://cenitsaas.com/users/sign_up) or [Sign In](https://cenitsaas.com/users/sign_in) 
+2. Go to Cenithub
 3. Pull Shared Collection RAMLStore
 4. Configure Cenithub API Header ``` X-User-Access-Key ``` and ```X-User-Access-Token```
-5. Run  ``` node bin/api-designer.js ```
+5. Define ```url```  Example: ```https://www.cenithub.com/api/v1/raml/file```
+5. Run  ``` node bin/api-designer.js ``` Test URL:  ```http://localhost:3000```
+
+## Running Locally
+
+* npm install
+* Run  ``` node bin/api-designer.js ``` Test URL:  ```http://localhost:3000```
+
+This will start a local designer instance using Cenithub store filesystem.
 
 ## License
 
