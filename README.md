@@ -10,7 +10,7 @@
 
 ## CENITHub Store Confuguration
 
-1. Create tenant in CenitSaaS [Sign Up](https://cenitsaas.com/users/sign_up) or [Sign In](https://cenitsaas.com/users/sign_in) 
+1. Configure CenitSaaS Store [Sign Up](https://cenitsaas.com/users/sign_up) or [Sign In](https://cenitsaas.com/users/sign_in) 
 2. Go to Cenithub
 3. Pull Shared Collection RAMLStore
 4. Configure Cenithub API Header ``` X-User-Access-Key ``` and ```X-User-Access-Token```
