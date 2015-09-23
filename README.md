@@ -8,115 +8,13 @@
 
 **API Designer** is a standalone/embeddable editor for [RAML](http://raml.org) (RESTful API Modeling Language) written in JavaScript using Angular.JS. By default, the editor uses an in-browser filesystem stored in HTML5 Localstorage.
 
-## Examples of designing RAML with API Designer in the Wild
+## CENITHub Store Confuguration
 
-* [Remote Medicine API](http://static-anypoint-mulesoft-com.s3.amazonaws.com/API_examples_notebooks/raml-design4.html)
-* [Notes API](http://static-anypoint-mulesoft-com.s3.amazonaws.com/API_examples_notebooks/raml-design3.html)
-* [Congo API for Drone Delivery](http://static-anypoint-mulesoft-com.s3.amazonaws.com/API_examples_notebooks/raml-design2.html)
-
-## Running Locally
-
-```
-npm install -g api-designer
-
-api-designer
-```
-
-This will start a local designer instance using the in-browser filesystem.
-
-## Embedding
-
-The following example details how to embed the API Designer:
-
-```html
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>My App</title>
-    <link rel="stylesheet" href="dist/styles/api-designer-vendor.css">
-    <link rel="stylesheet" href="dist/styles/api-designer.css">
-  </head>
-  <body ng-app="ramlEditorApp">
-    <raml-editor></raml-editor>
-    <script src="dist/scripts/api-designer-vendor.js"></script>
-    <script src="dist/scripts/api-designer.js"></script>
-    <script>
-      // This part is needed only if you want to provide your own Persistance Implementation
-      // Angular Module must match "ramlEditorApp"
-      angular.module('ramlEditorApp')
-      .factory('MyFileSystem', function ($q, config, $rootScope) {
-        var service = {};
-
-        service.directory = function (path) {
-          var deferred = $q.defer();
-        
-          // Your magic goes here:
-           // Do deferred.resolve(data); to fulfull the promise or
-           // deferred.reject(error); to reject it.
-        
-           return deferred.promise;
-        };
-
-        service.load = function (path, name) {
-          var deferred = $q.defer();
-        
-          // Your magic goes here:
-           // Do deferred.resolve(data); to fulfull the promise or
-           // deferred.reject(error); to reject it.
-        
-           return deferred.promise;
-        };
-
-        service.remove = function (path, name) {
-          var deferred = $q.defer();
-        
-          // Your magic goes here:
-           // Do deferred.resolve(data); to fulfull the promise or
-           // deferred.reject(error); to reject it.
-        
-           return deferred.promise;
-        };
-
-        service.save = function (path, name, contents) {
-          var deferred = $q.defer();
-        
-          // Your magic goes here:
-           // Do deferred.resolve(data); to fulfull the promise or
-           // deferred.reject(error); to reject it.
-        
-           return deferred.promise;
-        };
-
-        return service;
-      })
-      .run(function (MyFileSystem, config, $rootScope) {
-        // Set MyFileSystem as the filesystem to use
-        config.set('fsFactory', 'MyFileSystem');
-        
-        // In case you want to send notifications to the user
-        // (for instance, that he must login to save).
-        // The expires flags means whether
-        // it should be hidden after a period of time or the
-        // user should dismiss it manually.
-        $rootScope.$broadcast('event:notification',
-          {message: 'File saved.', expires: true});
-
-      });
-    </script>
-    <style>
-      html,
-      body {
-        height: 100%;
-      }
-    </style>
-  </body>
-</html>
-```
-
-## Contribution
-
-If you want to contribute to this project, please read our [contribution guide](https://github.com/mulesoft/api-designer/blob/master/CONTRIBUTING.md) first.
+1. Create tenant in CenitSaaS
+2. Sing In and go to Cenithub
+3. Pull Shared Collection RAMLStore
+4. Configure Cenithub API Header ``` X-User-Access-Key ``` and ```X-User-Access-Token```
+5. Run  ``` node bin/api-designer.js ```
 
 ## License
 

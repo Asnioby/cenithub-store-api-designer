@@ -9076,12 +9076,15 @@ if (!CodeMirror.mimeModes.hasOwnProperty('text/html'))
     'validate',
     'autoFocus',
     'rightClick',
-    'dragAndDrop'
+    'dragAndDrop',
+    'uuid4'
   ]).run([
     '$window',
     function ($window) {
       // Adding proxy settings for api console
-      $window.RAML.Settings.proxy = '/proxy/';
+      //$window.RAML.Settings.proxy = '/proxy/';
+      $window.RAML.Settings.disableProxy = true;
+      $window.RAML.Settings.proxy = 'http://localhost:3001/api/v1/';
     }
   ]);
   ;

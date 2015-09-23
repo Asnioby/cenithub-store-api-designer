@@ -1,23 +1,250 @@
 <!doctype html>
-<html role="api-designer">
-  <head>
+<html>
+<head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <title>API Designer</title>
-    <meta name="description" content="">
-    <meta name="viewport" content="width=device-width">
+    <title>CENITHub RAML API Designer</title>
+    <link rel="stylesheet" href="styles/api-designer-vendor.css">
+    <link rel="stylesheet" href="styles/api-designer.css">
+</head>
+<body ng-app="ramlEditorApp">
+<raml-editor></raml-editor>
+<script src="scripts/api-designer-vendor.js"></script>
+<script src="scripts/api-designer.js"></script>
+<script src="scripts/angular-uuid4.js"></script>
+<script>
+    // This part is needed only if you want to provide your own Persistance Implementation
+    // Angular Module must match "ramlEditorApp"
+    angular.module('ramlEditorApp')
+            .factory('MyFileSystem', function ($http, $q, config, $rootScope, uuid4) {
 
-    <link rel="stylesheet" href="styles/api-designer-vendor.css"/>
+                var files = {};
+                var service = {};
+                var url = "https://www.cenithub.com/api/v1/raml/file"
+                //Header for testing only
+                var header = {'X-User-Access-Key': 'YOUR API KEY','X-User-Access-Token': 'YOUR API KEY'}
 
-    <link rel="stylesheet" href="styles/api-designer.css"/>
-  </head>
-  <body ng-app="ramlEditorApp">
-    <div class="container">
-        <raml-editor></raml-editor>
-    </div>
+                var copychildrenPath = childrenPath;
 
-    <script src="scripts/api-designer-vendor.js"></script>
+                function childrenPath(data, path, fileType) {
+                    var children = []
+                    for (id in data){
+                        var file = data[id].file;
+                        if(((path + file.name) == file.path) || ((path + '/'+ file.name) == file.path)) {
+                            //alert("Method path:" + path + " File path: " + file.path);
+                            if (file.type == 'folder') {
+                                var folder = childrenPath(data, file.path, file.type);
+                                children.push(folder);
+                                files[file.path] = file;
+                            }else {
+                                children.push(file);
+                                files[file.path] = file;
+                            }
+                        }
+                    }
+                  return { path: path, type: fileType, meta: {}, children: children };
+                }
 
-    <script src="scripts/api-designer.js"></script>
-  </body>
+                service.directory = function (path) {
+                    var deferred = $q.defer();
+                    //alert($path.parse(path))
+                    baseFS = {}
+                    $http({
+                        method: 'GET',
+                        data: '',
+                        url: url + '?sort_by=path&asc',
+                        headers: header,
+                        withCredentials: false
+                    }).success(function (data, status) {
+                        if(status == 200){
+                          baseFS = copychildrenPath(data,'/','folder')
+                        }
+                        else{
+                            alert(data.message)
+                        }
+                        deferred.resolve(baseFS);
+                        setTimeout(putColors, 100)
+                    })
+                                .error(errorFunction);
+                    return deferred.promise;
+                };
+
+                function errorFunction(data, status, headers, config) {
+                    //console.log("errorFunction", data, status, headers, config);
+                    if(status >= 401){
+                        alert(data.message)
+                    }
+                }
+
+                function putColors(){
+                    $(".file-name").each(function() {
+                        //console.log($(this).html().length, $(this).html().lastIndexOf(".raml"));
+                        if($(this).html().lastIndexOf(".raml")  != -1 ){
+                            $(this).addClass("raml-file-browser");
+                        }
+                        else if($(this).html().lastIndexOf(".md")  != -1 ){
+                            $(this).addClass("md-file-browser");
+                        }
+                        else if($(this).html().lastIndexOf(".json")  != -1 ){
+                            $(this).addClass("json-file-browser");
+                        }
+                        //console.log(this);
+                    });
+                }
+
+                service.load = function (path) {
+                    var deferred = $q.defer();
+                    if (files[path]) {
+                        $http({
+                            method: 'GET',
+                            data: '',
+                            url: url + '/' + files[path].id,
+                            withCredentials: false,
+                            headers: header
+                        }).success(function (data) {
+                            deferred.resolve(decodeURI(data.file.content));
+                        })
+                                .error(deferred.reject.bind(deferred));
+                        //.error(deferred.reject(fileNotFoundInStoreMessage(path)));
+                    }
+                    return deferred.promise;
+                };
+
+                service.remove = function (path) {
+                    var deferred = $q.defer();
+                    if (!files[path]){
+                        deferred.reject('file at path "' + path + '" does not exist');
+                        return deferred.promise;
+                    }
+                    $http({
+                        method: 'DELETE',
+                        data: '',
+                        url: url + '/' + files[path].id,
+                        withCredentials: false,
+                        headers: header
+                    }).success(function (data) {
+                        if(data.status=='ok'){
+                            delete files[path];
+                            deferred.resolve();
+                        }
+                        else{
+                            alert(data.message);
+                        }
+                    }).error(deferred.reject.bind(deferred));
+                    return deferred.promise;
+                };
+
+                service.save = function (path, content) {
+                    var deferred = $q.defer();
+                    var file = {};
+                    if (!files[path]) {
+                      file.id = uuid4.generate();
+                      file.meta = {lastUpdated: new Date(),created: new Date()}
+                    }else {
+                        file.id = files[path].id;
+                        file.meta = {lastUpdated: new Date(),created: files[path].meta.created}
+                    }
+                    file.path = path;
+                    file.content = encodeURI(content);
+                    file.name = extractNameFromPath(path);
+                    file.type = 'file';
+                        $http({
+                            method: 'POST',
+                            data: JSON.stringify(file),
+                            url: url,
+                            withCredentials: false,
+                            headers: header
+                        }).success(deferred.resolve.bind(deferred))
+                                .error(deferred.reject.bind(deferred));
+                     files[path] = file;
+                    return deferred.promise;
+                };
+
+                function extractNameFromPath(path) {
+                    var pathInfo = validatePath(path);
+                    if (!pathInfo.valid) {
+                        throw 'Invalid Path!';
+                    }
+                    // When the path is ended in '/'
+                    if (path.lastIndexOf('/') === path.length - 1) {
+                        path = path.slice(0, path.length - 1);
+                    }
+                    return path.slice(path.lastIndexOf('/') + 1);
+                }
+
+                function validatePath(path) {
+                    if (path.indexOf('/') !== 0) {
+                        return {valid: false, reason: 'Path should start with "/"'};
+                    }
+                    return {valid: true};
+                }
+
+                service.createFolder = function (path) {
+                    var deferred = $q.defer();
+                    var file = {};
+                    if (!files[path]) {
+                        file.id = uuid4.generate();
+                    }else {
+                        file.id = files[path].id;
+                    }
+                    file.path = path;
+                    file.name = extractNameFromPath(path);
+                    file.type = 'folder';
+                    file.lastUpdated = new Date();
+                    file.meta = {lastUpdated: new Date(),created: new Date()}
+                    //  We dont manage already existing folders
+                    $http({
+                        method: 'POST',
+                        data: JSON.stringify(file),
+                        url: url,
+                        withCredentials: false,
+                        headers: header
+                    }).success(function (data) {
+                        files[path] = file;
+                        deferred.resolve();
+                    })
+                            .error(deferred.reject.bind(deferred));
+                    return deferred.promise;
+                };
+
+                service.rename = function (source, destination) {
+                    var promise = service.load(source).then(function (retour) {
+                        // on enregistre le nouveau fichier
+                        var newType = 'file';
+                        var newName = extractNameFromPath(destination);
+                        return service.save(destination, retour, newName, newType);
+                    }, function (reason) {
+                        // Error in any request
+                        return $q.reject(reason);
+                    }).then(function () {
+                        // on supprime l'ancien fichier
+                        return service.remove(source);
+                    }, function(reason) {
+                        console.log('Failed: ' + reason);
+                    });
+                    return promise;
+                };
+
+                return service;
+            })
+            .run(function (MyFileSystem, config, $rootScope) {
+                // Set MyFileSystem as the filesystem to use
+                config.set('fsFactory', 'MyFileSystem');
+
+                // In case you want to send notifications to the user
+                // (for instance, that he must login to save).
+                // The expires flags means whether
+                // it should be hidden after a period of time or the
+                // user should dismiss it manually.
+                $rootScope.$broadcast('event:notification',
+                        {message: 'File saved.', expires: true});
+
+            });
+</script>
+<style>
+    html,
+    body {
+        height: 100%;
+    }
+</style>
+</body>
 </html>
