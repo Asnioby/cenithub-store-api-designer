@@ -19,9 +19,8 @@
 
                 var files = {};
                 var service = {};
-                var url = "http://localhost:3001/api/v1/raml/file"
-                //Header for testing only
-                var header = {'X-User-Access-Key': 'N615456294','X-User-Access-Token': '3Yr7cf-K7Dh4UgFWH29T'}
+                var url = "https://www.cenithub.com/api/v1/raml/file"
+                var header = {'X-User-Access-Key': 'N112686773','X-User-Access-Token': 'gokRFDAD79Xovqv3SKeL'}
 
                 var copychildrenPath = childrenPath;
 
@@ -32,14 +31,12 @@
                         if(((path + file.name) == file.path) || ((path + '/'+ file.name) == file.path)) {
                             //alert("Method path:" + path + " File path: " + file.path);
                             if (file.type == 'folder') {
-                                delete data[id];
                                 var folder = childrenPath(data, file.path, file.type);
                                 children.push(folder);
                                 files[file.path] = file;
                             }else {
                                 children.push(file);
                                 files[file.path] = file;
-                                delete data[id];
                             }
                         }
                     }
@@ -94,7 +91,7 @@
                 }
 
                 service.load = function (path) {
-                   var deferred = $q.defer();
+                    var deferred = $q.defer();
                     if (files[path]) {
                         $http({
                             method: 'GET',
@@ -103,8 +100,7 @@
                             withCredentials: false,
                             headers: header
                         }).success(function (data) {
-                            var content = data.file.content.toString();
-                            deferred.resolve(decodeURI(content));
+                            deferred.resolve(decodeURI(data.file.content));
                         })
                                 .error(deferred.reject.bind(deferred));
                         //.error(deferred.reject(fileNotFoundInStoreMessage(path)));
@@ -147,7 +143,7 @@
                         file.meta = {lastUpdated: new Date(),created: files[path].meta.created}
                     }
                     file.path = path;
-                    file.content = encodeURI(content.toString());
+                    file.content = encodeURI(content);
                     file.name = extractNameFromPath(path);
                     file.type = 'file';
                         $http({
