@@ -1,8 +1,7 @@
-<!doctype html>
 <html>
 <head>
     <meta charset="utf-8">
-    <title>CENITHub RAML API Designer</title>
+    <title>RAML API Designer - CENITHub Store</title>
     <link rel="stylesheet" href="styles/api-designer-vendor.css">
     <link rel="stylesheet" href="styles/api-designer.css">
 </head>
@@ -19,33 +18,35 @@
 
                 var files = {};
                 var service = {};
-                var url = "http://localhost:3001/api/v1/raml/file"
+                var url_base = "http://localhost:3001";
+                var resource = "/api/v1/raml/file";
                 //Header for testing only
-                var header = {'X-User-Access-Key': 'N615456294','X-User-Access-Token': '3Yr7cf-K7Dh4UgFWH29T'}
+                var header = {
+                              'X-User-Access-Key': 'N615456294',
+                              'X-User-Access-Token': '3Yr7cf-K7Dh4UgFWH29T'
+                             };
 
                 var copychildrenPath = childrenPath;
 
-                function childrenPath(data, path, fileType) {
+                function childrenPath(data, fileExplore) {
                     var children = []
                     for (id in data){
                         var file = data[id].file;
-                        if(((path + file.name) == file.path) || ((path + '/'+ file.name) == file.path)) {
-                            //alert("Method path:" + path + " File path: " + file.path);
+                        if(((fileExplore.path + file.name) == file.path) || ((fileExplore.path + '/'+ file.name) == file.path)) {
                             if (file.type == 'folder') {
-                                delete data[id];
-                                var folder = childrenPath(data, file.path, file.type);
+                                //delete data[id];
+                                var folder = childrenPath(data, file);
                                 children.push(folder);
                                 files[file.path] = file;
                             }else {
+                                //delete data[id];
                                 children.push(file);
                                 files[file.path] = file;
-                                delete data[id];
                             }
                         }
                     }
-                  return { path: path, type: fileType, meta: {}, children: children };
+                    return { name: fileExplore.name, path: fileExplore.path, type: fileExplore.type, meta: fileExplore.meta, children: children };
                 }
-
                 service.directory = function (path) {
                     var deferred = $q.defer();
                     //alert($path.parse(path))
@@ -53,20 +54,21 @@
                     $http({
                         method: 'GET',
                         data: '',
-                        url: url + '?sort_by=path&asc',
+                        url: url_base + resource + '?sort_by=path&asc',
                         headers: header,
                         withCredentials: false
                     }).success(function (data, status) {
                         if(status == 200){
-                          baseFS = copychildrenPath(data,'/','folder')
+                            root = {path: '/', type: 'folder', meta: {}, name: 'Root', content: ''};
+                            rootFS = copychildrenPath(data,root);
                         }
                         else{
                             alert(data.message)
                         }
-                        deferred.resolve(baseFS);
+                        deferred.resolve(rootFS);
                         setTimeout(putColors, 100)
                     })
-                                .error(errorFunction);
+                            .error(errorFunction);
                     return deferred.promise;
                 };
 
@@ -94,17 +96,16 @@
                 }
 
                 service.load = function (path) {
-                   var deferred = $q.defer();
+                    var deferred = $q.defer();
                     if (files[path]) {
                         $http({
                             method: 'GET',
                             data: '',
-                            url: url + '/' + files[path].id,
+                            url: url_base + resource + '/' + files[path].id,
                             withCredentials: false,
                             headers: header
                         }).success(function (data) {
-                            var content = data.file.content.toString();
-                            deferred.resolve(decodeURI(content));
+                            deferred.resolve(decodeURI(data.file.content));
                         })
                                 .error(deferred.reject.bind(deferred));
                         //.error(deferred.reject(fileNotFoundInStoreMessage(path)));
@@ -121,7 +122,7 @@
                     $http({
                         method: 'DELETE',
                         data: '',
-                        url: url + '/' + files[path].id,
+                        url: url_base + resource + '/' + files[path].id,
                         withCredentials: false,
                         headers: header
                     }).success(function (data) {
@@ -136,9 +137,14 @@
                     return deferred.promise;
                 };
 
+                function ab2str(buf) {
+                    return String.fromCharCode.apply(null, new Uint16Array(buf));
+                }
+
                 service.save = function (path, content) {
                     var deferred = $q.defer();
                     var file = {};
+                    var filename = '';
                     if (!files[path]) {
                       file.id = uuid4.generate();
                       file.meta = {lastUpdated: new Date(),created: new Date()}
@@ -147,13 +153,13 @@
                         file.meta = {lastUpdated: new Date(),created: files[path].meta.created}
                     }
                     file.path = path;
-                    file.content = encodeURI(content.toString());
+                    file.content = encodeURI(content);
                     file.name = extractNameFromPath(path);
                     file.type = 'file';
                         $http({
                             method: 'POST',
                             data: JSON.stringify(file),
-                            url: url,
+                            url: url_base + resource,
                             withCredentials: false,
                             headers: header
                         }).success(deferred.resolve.bind(deferred))
@@ -198,7 +204,7 @@
                     $http({
                         method: 'POST',
                         data: JSON.stringify(file),
-                        url: url,
+                        url: url_base + resource,
                         withCredentials: false,
                         headers: header
                     }).success(function (data) {
@@ -212,9 +218,7 @@
                 service.rename = function (source, destination) {
                     var promise = service.load(source).then(function (retour) {
                         // on enregistre le nouveau fichier
-                        var newType = 'file';
-                        var newName = extractNameFromPath(destination);
-                        return service.save(destination, retour, newName, newType);
+                        return service.save(destination, retour);
                     }, function (reason) {
                         // Error in any request
                         return $q.reject(reason);
