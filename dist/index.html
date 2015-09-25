@@ -10,23 +10,32 @@
 <script src="scripts/api-designer-vendor.js"></script>
 <script src="scripts/api-designer.js"></script>
 <script src="scripts/angular-uuid4.js"></script>
+<script src="config/config.js"></script>
 <script>
     // This part is needed only if you want to provide your own Persistance Implementation
     // Angular Module must match "ramlEditorApp"
     angular.module('ramlEditorApp')
-            .factory('MyFileSystem', function ($http, $q, config, $rootScope, uuid4) {
+            .factory('MyFileSystem', function ( $window, $http, $q, config, $rootScope, uuid4, API) {
 
                 var files = {};
                 var service = {};
-                var url_base = "http://localhost:3001";
-                var resource = "/api/v1/raml/file";
-                //Header for testing only
+                var url_base = API.url;
+                var resource = API.resource;
+                var query = $window.location.search;
+
                 var header = {
-                              'X-User-Access-Key': 'N615456294',
-                              'X-User-Access-Token': '3Yr7cf-K7Dh4UgFWH29T'
+                              'X-User-Access-Key': getParameterByName('key') || API.header.key,
+                              'X-User-Access-Token': getParameterByName('token') || API.header.token
                              };
 
                 var copychildrenPath = childrenPath;
+
+                function getParameterByName(name) {
+                    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+                    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+                            results = regex.exec(location.search);
+                    return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+                }
 
                 function childrenPath(data, fileExplore) {
                     var children = []
@@ -67,15 +76,16 @@
                         }
                         deferred.resolve(rootFS);
                         setTimeout(putColors, 100)
-                    })
-                            .error(errorFunction);
+                    }).error(function () {
+                           $window.location.href = "/login.html";
+                        });
                     return deferred.promise;
                 };
 
                 function errorFunction(data, status, headers, config) {
                     //console.log("errorFunction", data, status, headers, config);
                     if(status >= 401){
-                        alert(data.message)
+                        $window.location.href = "/login.html";
                     }
                 }
 
@@ -136,10 +146,6 @@
                     }).error(deferred.reject.bind(deferred));
                     return deferred.promise;
                 };
-
-                function ab2str(buf) {
-                    return String.fromCharCode.apply(null, new Uint16Array(buf));
-                }
 
                 service.save = function (path, content) {
                     var deferred = $q.defer();

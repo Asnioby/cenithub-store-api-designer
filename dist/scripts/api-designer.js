@@ -9077,7 +9077,8 @@ if (!CodeMirror.mimeModes.hasOwnProperty('text/html'))
     'autoFocus',
     'rightClick',
     'dragAndDrop',
-    'uuid4'
+    'uuid4',
+    'storeapi'
   ]).run([
     '$window',
     function ($window) {
