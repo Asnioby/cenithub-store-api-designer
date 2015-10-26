@@ -3,7 +3,7 @@
 
   angular.module('ramlEditorApp')
     .constant('UPDATE_RESPONSIVENESS_INTERVAL', 800)
-    .service('ramlParserFileReader', function ($http, $q, ramlParser, ramlRepository, safeApplyWrapper) {
+    .service('ramlParserFileReader', function ($http, $q, $window, ramlParser, ramlRepository, safeApplyWrapper) {
       function loadFile (path) {
         return ramlRepository.loadFile({path: path}).then(
           function success(file) {
@@ -23,7 +23,9 @@
       }
 
       function readExtFile(path) {
-        return $http.get(path, {transformResponse: null}).then(
+        var proxy = $window.RAML.Settings.proxy || '';
+        var target = proxy + path;
+        return $http.get(target, {transformResponse: null}).then(
           // success
           function success(response) {
             return response.data;
@@ -47,7 +49,7 @@
     })
     .controller('ramlEditorMain', function (UPDATE_RESPONSIVENESS_INTERVAL, $scope, $rootScope, $timeout, $window,
       safeApply, safeApplyWrapper, debounce, throttle, ramlHint, ramlParser, ramlParserFileReader, ramlRepository, codeMirror,
-      codeMirrorErrors, config, $prompt, $confirm, $modal
+      codeMirrorErrors, config, $prompt, $confirm, $modal, mockingServiceClient
     ) {
       var editor, lineOfCurrentError, currentFile;
 
@@ -341,6 +343,10 @@
             return 'WARNING: You have unsaved changes. Those will be lost if you leave this page.';
           }
         };
+
+        if ($scope.mockingServiceBaseUri) {
+          mockingServiceClient.baseUri = $scope.mockingServiceBaseUri;
+        }
       })();
     })
   ;

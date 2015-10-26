@@ -12,7 +12,7 @@
           return done(new Error('Invalid file location: ' + filename));
         }
 
-        return $http.get(filename, { transformResponse: false })
+        return $http.get(proxy + filename, { transformResponse: false })
           .then(function (response) {
             return done(null, response.data);
           })
@@ -38,7 +38,7 @@
       self.convert = function convert(url) {
         var deferred = $q.defer();
 
-        swaggerToRamlObject(proxy + url, reader, parseResult(deferred));
+        swaggerToRamlObject(url, reader, parseResult(deferred));
 
         return deferred.promise;
       };
@@ -49,7 +49,7 @@
         if (!importService.isZip(file)) {
           deferred.reject(new Error('Invalid zip file'));
         } else {
-          importService.readFileAsText(file).then(function (contents) {
+          importService.readFile(file).then(function (contents) {
             var files = importService.parseZip(contents);
 
             swaggerToRamlObject.files(
