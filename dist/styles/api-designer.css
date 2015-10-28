@@ -1160,6 +1160,24 @@ label {
 .modal-footer .btn-block + .btn-block {
   margin-left: 0;
 }
+
+.login-footer {
+    margin-top: 15px;
+    padding: 19px 20px 20px;
+    text-align: right;
+    border-top: 1px solid #e5e5e5;
+}
+.login-footer .btn + .btn {
+    margin-middle: 5px;
+    margin-bottom: 0;
+}
+.login-footer .btn-group .btn + .btn {
+    margin-middle: -1px;
+}
+.login-footer .btn-block + .btn-block {
+    margin-middle: 0;
+}
+
 .btn {
   display: inline-block;
   font-weight: normal;
