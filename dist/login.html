@@ -7,25 +7,109 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <meta name="viewport" content="width=device-width">
-    <link rel="stylesheet" href="styles/api-designer-vendor.css">
-    <link rel="stylesheet" href="styles/api-designer.css">
 </head>
 </head>
 <body ng-app="ramlEditorApp">
 <script src="scripts/api-designer-vendor.js"></script>
-<script src="scripts/api-designer.js"></script>
-<div class="container" style="text-align: center;">
-    <br/><br/>
-    <img src="/img/logo_cenit.png" alt="RAML API Designer - CENITHub Store">
-    <br/>
-    CENITHub Store
-    <br/><br/>
-    <form name="input" action="index.html" method="get" ua-login ua-error="error-msg">
-        <input id="key" name="key" placeholder="User Key"><br>
-        <input id="token" name="token" placeholder="User Token" type="password"><br>
-        <button type="submit">Log in</button>
-        <p id="error-msg"></p>
+<div ng-controller="loginDataController">
+    <form class="css-form">
+        User Key: <input type="text" ng-model="store.key" name="uKey" required=""/><br />
+        <div ng-show="form.$submitted || form.uKey.$touched">
+            <div ng-show="form.uKey.$error.required">Tell us your key.</div>
+        </div>
+        User Token: <input type="text" ng-model="store.token" name="uToken" required=""/><br/>
+        <div ng-show="form.$submitted || form.uToken.$touched">
+            <div ng-show="form.uToken.$error.required">Tell us your key.</div>
+        </div>
+        Store Server: <input type="text" ng-model="store.server"/><br />
+        Store Resource: <input type="text" ng-model="store.resource"/><br />
+        Store Login Ping: <input type="text" ng-model="store.auth"/><br />
+        RAML Repository: <input type="text" ng-model="store.repository"/><br />
+        <input type="submit" ng-click="saveConfig(store)" value="Login" />
+        <input type="submit" ng-click="clearConfig()" value="Cancel" />
     </form>
 </div>
+
+<script>
+    angular.module('ramlEditorApp', [])
+            .controller('loginDataController', ['$scope','$http', function($scope, $http) {
+
+                $scope.config_data = {};
+                $scope.loginMsg = {};
+                $scope.store = {
+                                'key': window.localStorage.getItem("key"),
+                                'token': window.localStorage.getItem("token"),
+                                'server': window.localStorage.getItem("store_server") || 'http://localhost:3001',
+                                'auth': window.localStorage.getItem("store_auth") || '/api/v1/auth/ping',
+                                'resource': window.localStorage.getItem("store_resource") || '/api/v1/raml/file',
+                                'repository': window.localStorage.getItem("store_repository") || '/api/v1/public/raml'
+                                };
+
+                $scope.saveConfig = function(store) {
+                        $http({
+                            method: 'POST',
+                            data: '',
+                            url: store.server + store.auth,
+                            headers: { 'X-User-Access-Key': store.key, 'X-User-Access-Token': store.token },
+                            withCredentials: false
+                        }).success(function (data, status) {
+                            if (status == 200) {
+                                saveSession(store);
+                                saveLocal(store);
+                                window.location.href = '/';
+                                $scope.loginMsg = {"STATUS": status, "Message": 'Ok!!'};
+                            }
+                        }).error(function (data,status) {
+                            $scope.loginMsg = {"STATUS": data, "Message": 'Error!'};
+                        });
+                }
+
+                function saveSession(store) {
+
+                    if (window.sessionStorage) {
+
+                        sessionStorage.setItem("key", store.key);
+                        sessionStorage.setItem("token", store.token);
+                        sessionStorage.setItem("store_server", store.server);
+                        sessionStorage.setItem("store_resource", store.resource);
+                        sessionStorage.setItem("store_auth", store.auth);
+                        sessionStorage.setItem("store_repository", store.repository);
+
+                        $scope.store = {
+                                        'key': window.sessionStorage.getItem("key"),
+                                        'token': window.sessionStorage.getItem("token"),
+                                        'server': window.sessionStorage.getItem("store_server"),
+                                        'resource': window.sessionStorage.getItem("store_resource"),
+                                        'auth': window.sessionStorage.getItem("store_auth"),
+                                        'repository': window.sessionStorage.getItem("store_repository")
+                                       };
+                    }
+                    else {
+                        throw new Error('Not support Session Storage!');
+                    }
+                }
+
+                function saveLocal(store) {
+
+                    if (window.localStorage) {
+
+                        localStorage.setItem("key", store.key);
+                        localStorage.setItem("token", store.token);
+                        localStorage.setItem("store_server", store.server);
+                        localStorage.setItem("store_resource", store.resource);
+                        localStorage.setItem("store_auth", store.auth);
+                        localStorage.setItem("store_repository", store.repository);
+                    }
+                    else {
+                        throw new Error('Not support LocalStorage!');
+                    }
+                }
+
+                $scope.clearConfig = function(store) {
+                    $scope.store.key = '';
+                    $scope.store.token = '';
+                };
+            }]);
+</script>
 </body>
 </html>

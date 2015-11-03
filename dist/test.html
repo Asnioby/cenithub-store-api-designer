@@ -12,8 +12,8 @@
 <script>
     // This part is needed only if you want to provide your own Persistance Implementation
     // Angular Module must match "ramlEditorApp"
-    angular.module('ramlEditorApp')
-            .factory('MyFileSystem', function ( $window, $http, $q, config, $rootScope) {
+    var app = angular.module('ramlEditorApp')
+            app.factory('MyFileSystem', function ( $window, $http, $q, config, $rootScope) {
 
                 var files = {};
                 var service = {};
@@ -256,7 +256,7 @@
 
                 return service;
             })
-            .run(function (MyFileSystem, config, $rootScope) {
+            app.run(function (MyFileSystem, config, $rootScope) {
                 // Set MyFileSystem as the filesystem to use
                 config.set('fsFactory', 'MyFileSystem');
                 $rootScope.mockingServiceDisabled
@@ -270,22 +270,15 @@
                         {message: 'File saved.', expires: true});
 
             })
-            .run(function (fileSystem, ramlRepository, config, $window, $http, $rootScope, UPDATE_RESPONSIVENESS_INTERVAL) {
+            app.factory('importRAML', function (ramlRepository, $window, $http, $q, config, $rootScope) {
 
-                config.get('updateResponsivenessInterval', UPDATE_RESPONSIVENESS_INTERVAL);
+                var service = {};
 
                 var header = {};
                 var server = null;
                 var repository = null;
-                var id = getParameterByName ('import');
 
-                if (id) {
-                    loadConfigData();
-                    //alert(JSON.stringify(ramlRepository));
-                    importRAML(id);
-                }
-
-                function loadConfigData() {
+                service.loadConfig = function loadConfigData() {
                     if ($window.localStorage) {
                         header = { 'X-User-Access-Key': $window.localStorage.getItem("key"), 'X-User-Access-Token': $window.localStorage.getItem("token") };
                         server =  $window.localStorage.getItem("store_server");
@@ -296,42 +289,8 @@
                     }
                 }
 
-               function importRAML(id) {
-                   if (id) {
-                       $http({
-                           method: 'GET',
-                           data: '',
-                           url: server + repository + '/' + id,
-                           withCredentials: false,
-                           headers: header
-                       }).then(function successCallback(response) {
-                           raml = response.data;
-                           //alert(JSON.stringify(response.data));
-                           var dir = fileSystem.createFolder('/' + raml.api_name);
-                           dir = fileSystem.createFolder('/' + raml.api_name + '/' + raml.api_version);
-                           fileSystem.save('/' + raml.api_name + '/' + raml.api_version + '/' + raml.api_name + '.raml', raml.raml_doc);
-                           raml_ref = raml.raml_references;
-                           for (id in raml_ref) {
-                             file = raml_ref[id];
-                             fileSystem.createFolder('/' + raml.api_name + '/' + raml.api_version + '/' + file.path.split('/')[0]);
-                             fileSystem.save('/' + raml.api_name + '/' + raml.api_version + '/' + file.path.split('/')[0] + '/' + file.path.split('/')[1], file.content);
-                           }
-                           //$rootScope.$broadcast('event:notification', {message: 'RAML Import.', expires: true});
-                           fileSystem.directory('/').then(function(rootFS){
-                               $rootScope.$broadcast('event:raml-editor-filetree-modified', root);
-                           })
-
-                           //$rootScope.$broadcast('event:file-updated');
-                           //$rootScope.sourceUpdated();
-                           //location.search = '';
-                       }, function errorCallback(response) {
-                           $rootScope.$broadcast('event:notification',
-                                   {message: 'Error importing RAML.', expires: true});
-                       });
-                   }
-               }
-
-                function importRAMLFB(id) {
+                service.import = function importRAML(id) {
+                    alert(id);
                     if (id) {
                         $http({
                             method: 'GET',
@@ -342,12 +301,18 @@
                         }).then(function successCallback(response) {
                             raml = response.data;
                             //alert(JSON.stringify(response.data));
-                            var dir = fileBrowser.createFolder('/' + raml.api_name);
-                            dir = fileSystem.createFolder('/' + raml.api_name + '/' + raml.api_version);
-                            fileSystem.save('/' + raml.api_name + '/' + raml.api_version + '/' + raml.api_name + '.raml', raml.raml_doc);
-                            raml_ref = raml.raml_references;
-
-                            //$rootScope.$broadcast('event:file-updated');
+                            alert(JSON.stringify($rootScope.rootDirectory));
+                            parent = ramlRepository.generateDirectory($rootScope.rootDirectory, raml.api_name);
+                            parent = ramlRepository.generateDirectory(parent, raml.api_version);
+                            //importService.createFile(parent, raml.api_name + '.raml', raml.raml_doc);
+//                            raml_ref = raml.raml_references;
+//                            for (id in raml_ref) {
+//                                file = raml_ref[id];
+//                                ramlRepository.createFolder('/' + raml.api_name + '/' + raml.api_version + '/' + file.path.split('/')[0]);
+//                                ramlRepository.save('/' + raml.api_name + '/' + raml.api_version + '/' + file.path.split('/')[0] + '/' + file.path.split('/')[1], file.content);
+//                            }
+                            $rootScope.$broadcast('event:notification', {message: 'RAML Import.', expires: true});
+                            $rootScope.$broadcast('event:file-updated');
                             //$rootScope.sourceUpdated();
                             //location.search = '';
                         }, function errorCallback(response) {
@@ -357,41 +322,25 @@
                     }
                 }
 
-                function importRAMLSync(id) {
-                    if (id) {
-                        var response = $http({
-                                                method: 'GET',
-                                                data: '',
-                                                url: server + repository + '/' + id,
-                                                withCredentials: false,
-                                                headers: header
-                                            });
-                            alert(JSON.stringify(response));
-
-                            raml = response.data;
-                            //alert(JSON.stringify(response.data));
-                            fileSystem.createFolder('/' + raml.api_name);
-                            fileSystem.createFolder('/' + raml.api_name + '/' + raml.api_version);
-                            fileSystem.save('/' + raml.api_name + '/' + raml.api_version + '/' + raml.api_name + '.raml', raml.raml_doc);
-                            raml_ref = raml.raml_references;
-                            for (id in raml_ref) {
-                                file = raml_ref[id];
-                                fileSystem.createFolder('/' + raml.api_name + '/' + raml.api_version + '/' + file.path.split('/')[0]);
-                                fileSystem.save('/' + raml.api_name + '/' + raml.api_version + '/' + file.path.split('/')[0] + '/' + file.path.split('/')[1], file.content);
-                            }
-                            $rootScope.$broadcast('event:notification', {message: 'RAML Import.', expires: true});
-                            $rootScope.$broadcast('event:file-updated');
-                            //$rootScope.sourceUpdated();
-                            location.search = '';
-                    }
-                }
-
-               function getParameterByName(name) {
+                service.queryParam = function getParameterByName(name) {
                     name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
                     var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
                             results = regex.exec(location.search);
                     return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
                 }
+
+                return service;
+            });
+
+            app.run(function (importRAML, config, $window, $http, $rootScope, UPDATE_RESPONSIVENESS_INTERVAL) {
+                config.get('updateResponsivenessInterval', UPDATE_RESPONSIVENESS_INTERVAL);
+                var id = importRAML.queryParam ('import');
+                if (id) {
+                    importRAML.loadConfig();
+                    importRAML.import(id);
+                    //location.search = '';
+                }
+
             });
 </script>
 <style>

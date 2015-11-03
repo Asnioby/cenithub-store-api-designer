@@ -9,26 +9,20 @@
 <raml-editor></raml-editor>
 <script src="scripts/api-designer-vendor.js"></script>
 <script src="scripts/api-designer.js"></script>
-<script src="scripts/angular-uuid4.js"></script>
-<script src="config/config.js"></script>
 <script>
     // This part is needed only if you want to provide your own Persistance Implementation
     // Angular Module must match "ramlEditorApp"
     angular.module('ramlEditorApp')
-            .factory('MyFileSystem', function ( $window, $http, $q, config, $rootScope, uuid4, API) {
+            .factory('MyFileSystem', function ( $window, $http, $q, config, $rootScope) {
 
                 var files = {};
                 var service = {};
-                var url_base = API.url;
-                var resource = API.resource;
-                var query = $window.location.search;
+                var server = null;
+                var resource = null;
+                var header = {};
+                var repository = null;
 
-                var header = {
-                              'X-User-Access-Key': getParameterByName('key') || API.header.key,
-                              'X-User-Access-Token': getParameterByName('token') || API.header.token
-                             };
-
-                var copychildrenPath = childrenPath;
+                 var copychildrenPath = childrenPath;
 
                 function getParameterByName(name) {
                     name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
@@ -37,10 +31,18 @@
                     return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
                 }
 
+                function pathToId(path) {
+                    return path.replace(/[`~!@#$%^&*()_|+\-=÷¿?;:'",.<>\{\}\[\]\\\/]/gi, '');
+                }
+
                 function childrenPath(data, fileExplore) {
                     var children = []
                     for (id in data){
-                        var file = data[id].file;
+                        var file = data[id];
+                        file.dirty = true;
+                        file.persisted = false;
+                        file.loaded = false;
+
                         if(((fileExplore.path + file.name) == file.path) || ((fileExplore.path + '/'+ file.name) == file.path)) {
                             if (file.type == 'folder') {
                                 //delete data[id];
@@ -56,20 +58,34 @@
                     }
                     return { name: fileExplore.name, path: fileExplore.path, type: fileExplore.type, meta: fileExplore.meta, children: children };
                 }
+
+                function loadConfigData() {
+                    if ($window.localStorage) {
+                       header = { 'X-User-Access-Key': $window.localStorage.getItem("key"), 'X-User-Access-Token': $window.localStorage.getItem("token") };
+                       server =  $window.localStorage.getItem("store_server");
+                       resource = $window.localStorage.getItem("store_resource");
+                       repository = $window.localStorage.getItem("store_repository");
+                    }
+                    else {
+                        throw new Error('Tu Browser no soporta LocalStorage!');
+                    }
+                }
+
                 service.directory = function (path) {
+                    loadConfigData();
                     var deferred = $q.defer();
                     //alert($path.parse(path))
                     baseFS = {}
                     $http({
                         method: 'GET',
                         data: '',
-                        url: url_base + resource + '?sort_by=path&asc',
+                        url: server + resource,
                         headers: header,
                         withCredentials: false
                     }).success(function (data, status) {
                         if(status == 200){
                             root = {path: '/', type: 'folder', meta: {}, name: 'Root', content: ''};
-                            rootFS = copychildrenPath(data,root);
+                            rootFS = copychildrenPath(data.file, root);
                         }
                         else{
                             alert(data.message)
@@ -77,7 +93,7 @@
                         deferred.resolve(rootFS);
                         setTimeout(putColors, 100)
                     }).error(function () {
-                           $window.location.href = "/login.html";
+                           //$window.location.href = "/login.html";
                         });
                     return deferred.promise;
                 };
@@ -85,7 +101,7 @@
                 function errorFunction(data, status, headers, config) {
                     //console.log("errorFunction", data, status, headers, config);
                     if(status >= 401){
-                        $window.location.href = "/login.html";
+                        //$window.location.href = "/login.html";
                     }
                 }
 
@@ -106,16 +122,17 @@
                 }
 
                 service.load = function (path) {
+
                     var deferred = $q.defer();
                     if (files[path]) {
                         $http({
                             method: 'GET',
                             data: '',
-                            url: url_base + resource + '/' + files[path].id,
+                            url: server + resource + '/' + files[path].id,
                             withCredentials: false,
                             headers: header
                         }).success(function (data) {
-                            deferred.resolve(decodeURI(data.file.content));
+                            deferred.resolve(decodeURI(data.content));
                         })
                                 .error(deferred.reject.bind(deferred));
                         //.error(deferred.reject(fileNotFoundInStoreMessage(path)));
@@ -132,7 +149,7 @@
                     $http({
                         method: 'DELETE',
                         data: '',
-                        url: url_base + resource + '/' + files[path].id,
+                        url: server + resource + '/' + files[path].id,
                         withCredentials: false,
                         headers: header
                     }).success(function (data) {
@@ -152,7 +169,7 @@
                     var file = {};
                     var filename = '';
                     if (!files[path]) {
-                      file.id = uuid4.generate();
+                      file.id = pathToId(path);
                       file.meta = {lastUpdated: new Date(),created: new Date()}
                     }else {
                         file.id = files[path].id;
@@ -165,7 +182,7 @@
                         $http({
                             method: 'POST',
                             data: JSON.stringify(file),
-                            url: url_base + resource,
+                            url: server + resource,
                             withCredentials: false,
                             headers: header
                         }).success(deferred.resolve.bind(deferred))
@@ -197,7 +214,7 @@
                     var deferred = $q.defer();
                     var file = {};
                     if (!files[path]) {
-                        file.id = uuid4.generate();
+                        file.id = pathToId(path);
                     }else {
                         file.id = files[path].id;
                     }
@@ -210,7 +227,7 @@
                     $http({
                         method: 'POST',
                         data: JSON.stringify(file),
-                        url: url_base + resource,
+                        url: server + resource,
                         withCredentials: false,
                         headers: header
                     }).success(function (data) {
@@ -242,6 +259,7 @@
             .run(function (MyFileSystem, config, $rootScope) {
                 // Set MyFileSystem as the filesystem to use
                 config.set('fsFactory', 'MyFileSystem');
+                $rootScope.mockingServiceDisabled
 
                 // In case you want to send notifications to the user
                 // (for instance, that he must login to save).
@@ -251,6 +269,129 @@
                 $rootScope.$broadcast('event:notification',
                         {message: 'File saved.', expires: true});
 
+            })
+            .run(function (fileSystem, config, $window, $http, $rootScope, UPDATE_RESPONSIVENESS_INTERVAL) {
+
+                config.get('updateResponsivenessInterval', UPDATE_RESPONSIVENESS_INTERVAL);
+
+                var header = {};
+                var server = null;
+                var repository = null;
+                var id = getParameterByName ('import');
+
+                if (id) {
+                    loadConfigData();
+                    //alert(JSON.stringify(ramlRepository));
+                    importRAML(id);
+                }
+
+                function loadConfigData() {
+                    if ($window.localStorage) {
+                        header = { 'X-User-Access-Key': $window.localStorage.getItem("key"), 'X-User-Access-Token': $window.localStorage.getItem("token") };
+                        server =  $window.localStorage.getItem("store_server");
+                        repository = $window.localStorage.getItem("store_repository");
+                    }
+                    else {
+                        throw new Error('Tu Browser no soporta LocalStorage!');
+                    }
+                }
+
+               function importRAML(id) {
+                   if (id) {
+                       $http({
+                           method: 'GET',
+                           data: '',
+                           url: server + repository + '/' + id,
+                           withCredentials: false,
+                           headers: header
+                       }).then(function successCallback(response) {
+                           raml = response.data;
+                           //alert(JSON.stringify(response.data));
+                           var dir = fileSystem.createFolder('/' + raml.api_name);
+                           dir = fileSystem.createFolder('/' + raml.api_name + '/' + raml.api_version);
+                           fileSystem.save('/' + raml.api_name + '/' + raml.api_version + '/' + raml.api_name + '.raml', raml.raml_doc);
+                           raml_ref = raml.raml_references;
+                           for (id in raml_ref) {
+                             file = raml_ref[id];
+                             fileSystem.createFolder('/' + raml.api_name + '/' + raml.api_version + '/' + file.path.split('/')[0]);
+                             fileSystem.save('/' + raml.api_name + '/' + raml.api_version + '/' + file.path.split('/')[0] + '/' + file.path.split('/')[1], file.content);
+                           }
+                           //$rootScope.$broadcast('event:notification', {message: 'RAML Import.', expires: true});
+                           fileSystem.directory('/').then(function(rootFS){
+                               $rootScope.$broadcast('event:raml-editor-filetree-modified', root);
+                           })
+
+                           //$rootScope.$broadcast('event:file-updated');
+                           //$rootScope.sourceUpdated();
+                           //location.search = '';
+                       }, function errorCallback(response) {
+                           $rootScope.$broadcast('event:notification',
+                                   {message: 'Error importing RAML.', expires: true});
+                       });
+                   }
+               }
+
+                function importRAMLFB(id) {
+                    if (id) {
+                        $http({
+                            method: 'GET',
+                            data: '',
+                            url: server + repository + '/' + id,
+                            withCredentials: false,
+                            headers: header
+                        }).then(function successCallback(response) {
+                            raml = response.data;
+                            //alert(JSON.stringify(response.data));
+                            var dir = fileBrowser.createFolder('/' + raml.api_name);
+                            dir = fileSystem.createFolder('/' + raml.api_name + '/' + raml.api_version);
+                            fileSystem.save('/' + raml.api_name + '/' + raml.api_version + '/' + raml.api_name + '.raml', raml.raml_doc);
+                            raml_ref = raml.raml_references;
+
+                            //$rootScope.$broadcast('event:file-updated');
+                            //$rootScope.sourceUpdated();
+                            //location.search = '';
+                        }, function errorCallback(response) {
+                            $rootScope.$broadcast('event:notification',
+                                    {message: 'Error importing RAML.', expires: true});
+                        });
+                    }
+                }
+
+                function importRAMLSync(id) {
+                    if (id) {
+                        var response = $http({
+                                                method: 'GET',
+                                                data: '',
+                                                url: server + repository + '/' + id,
+                                                withCredentials: false,
+                                                headers: header
+                                            });
+                            alert(JSON.stringify(response));
+
+                            raml = response.data;
+                            //alert(JSON.stringify(response.data));
+                            fileSystem.createFolder('/' + raml.api_name);
+                            fileSystem.createFolder('/' + raml.api_name + '/' + raml.api_version);
+                            fileSystem.save('/' + raml.api_name + '/' + raml.api_version + '/' + raml.api_name + '.raml', raml.raml_doc);
+                            raml_ref = raml.raml_references;
+                            for (id in raml_ref) {
+                                file = raml_ref[id];
+                                fileSystem.createFolder('/' + raml.api_name + '/' + raml.api_version + '/' + file.path.split('/')[0]);
+                                fileSystem.save('/' + raml.api_name + '/' + raml.api_version + '/' + file.path.split('/')[0] + '/' + file.path.split('/')[1], file.content);
+                            }
+                            $rootScope.$broadcast('event:notification', {message: 'RAML Import.', expires: true});
+                            $rootScope.$broadcast('event:file-updated');
+                            //$rootScope.sourceUpdated();
+                            location.search = '';
+                    }
+                }
+
+               function getParameterByName(name) {
+                    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+                    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+                            results = regex.exec(location.search);
+                    return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+                }
             });
 </script>
 <style>
