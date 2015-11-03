@@ -2,7 +2,7 @@
 
 angular.module('storeapi', [])
     .constant('API', {
-        'url': 'http://localhost:3001',
+        'url': 'https://www.cenithub.com',
         'resource': '/api/v1/raml/file',
         'header': {
             'key': '',
