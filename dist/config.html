@@ -1,0 +1,120 @@
+<!doctype html>
+<html role="api-designer">
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>RAML API Designer - CENITHub Store</title>
+    <link rel="stylesheet" href="styles/api-designer.css">
+    <link rel="stylesheet" href="styles/config.css">
+
+</head>
+<body ng-app="ramlEditorApp">
+<script src="scripts/api-designer-vendor.js"></script>
+<div ng-controller="loginDataController">
+    <form class="dark-matter">
+        <h1>RAML Store Server
+            <div align="left"><img src="img/logo_cenitsaas.jpg" alt="CENITHub Store"></div>
+            <span>Please fill all the texts in the fields.</span>
+        </h1>
+        <label for="uKey" class="control-label required-field-label">KEY</label>
+        <input type="text" ng-model="store.key" name="uKey" required=""/><br />
+        <div ng-show="form.$submitted || form.uKey.$touched">
+            <div ng-show="form.uKey.$error.required">Tell us your key.</div>
+        </div>
+        <label for="uToken" class="control-label required-field-label">TOKEN</label><input type="text" ng-model="store.token" name="uToken" required=""/><br/>
+        <div ng-show="form.$submitted || form.uToken.$touched">
+            <div ng-show="form.uToken.$error.required">Tell us your key.</div>
+        </div>
+        <label for="store.server" class="control-label required-field-label">SERVER</label><input type="text" ng-model="store.server"/><br/>
+        <label for="store.resource" class="control-label required-field-label">RESOURCE</label><input type="text" ng-model="store.resource"/><br/>
+        <label for="store.auth" class="control-label required-field-label">AUTH PING</label><input type="text" ng-model="store.auth"/><br/>
+        <label for="store.repository" class="control-label required-field-label">REPOSITORY</label><input type="text" ng-model="store.repository"/><br/>
+        <div class="login-footer">
+            <input type="submit" class="btn btn-primary" ng-click="saveConfig(store)" value="Login" />
+            <input type="button" class="btn btn-default" ng-click="clearConfig()" value="Cancel" />
+        </div>
+    </form>
+</div>
+<script>
+    angular.module('ramlEditorApp', [])
+            .controller('loginDataController', ['$scope','$http', function($scope, $http) {
+
+                $scope.config_data = {};
+                $scope.loginMsg = {};
+                $scope.store = {
+                                'key': window.localStorage.getItem("key"),
+                                'token': window.localStorage.getItem("token"),
+                                'server': window.localStorage.getItem("store_server") || 'https://www.cenithub.com',
+                                'auth': window.localStorage.getItem("store_auth") || '/api/v1/auth/ping',
+                                'resource': window.localStorage.getItem("store_resource") || '/api/v1/raml/file',
+                                'repository': window.localStorage.getItem("store_repository") || '/api/v1/public/raml'
+                                };
+
+                $scope.saveConfig = function(store) {
+                        $http({
+                            method: 'POST',
+                            data: '',
+                            url: store.server + store.auth,
+                            headers: { 'X-User-Access-Key': store.key, 'X-User-Access-Token': store.token },
+                            withCredentials: false
+                        }).success(function (data, status) {
+                            if (status == 200) {
+                                saveSession(store);
+                                saveLocal(store);
+                                window.location.href = '/';
+                                $scope.loginMsg = {"STATUS": status, "Message": 'Ok!!'};
+                            }
+                        }).error(function (data,status) {
+                            $scope.loginMsg = {"STATUS": data, "Message": 'Error!'};
+                        });
+                }
+
+                function saveSession(store) {
+
+                    if (window.sessionStorage) {
+
+                        sessionStorage.setItem("key", store.key);
+                        sessionStorage.setItem("token", store.token);
+                        sessionStorage.setItem("store_server", store.server);
+                        sessionStorage.setItem("store_resource", store.resource);
+                        sessionStorage.setItem("store_auth", store.auth);
+                        sessionStorage.setItem("store_repository", store.repository);
+
+                        $scope.store = {
+                                        'key': window.sessionStorage.getItem("key"),
+                                        'token': window.sessionStorage.getItem("token"),
+                                        'server': window.sessionStorage.getItem("store_server"),
+                                        'resource': window.sessionStorage.getItem("store_resource"),
+                                        'auth': window.sessionStorage.getItem("store_auth"),
+                                        'repository': window.sessionStorage.getItem("store_repository")
+                                       };
+                    }
+                    else {
+                        throw new Error('Not support Session Storage!');
+                    }
+                }
+
+                function saveLocal(store) {
+
+                    if (window.localStorage) {
+
+                        localStorage.setItem("key", store.key);
+                        localStorage.setItem("token", store.token);
+                        localStorage.setItem("store_server", store.server);
+                        localStorage.setItem("store_resource", store.resource);
+                        localStorage.setItem("store_auth", store.auth);
+                        localStorage.setItem("store_repository", store.repository);
+                    }
+                    else {
+                        throw new Error('Not support LocalStorage!');
+                    }
+                }
+
+                $scope.clearConfig = function(store) {
+                    $scope.store.key = '';
+                    $scope.store.token = '';
+                };
+            }]);
+</script>
+</body>
+</html>

@@ -13,7 +13,7 @@
     // This part is needed only if you want to provide your own Persistance Implementation
     // Angular Module must match "ramlEditorApp"
     angular.module('ramlEditorApp')
-            .factory('MyFileSystem', function ( $window, $http, $q, config, $rootScope) {
+            .factory('MyFileSystem', function ($window, $http, $q, config, $rootScope) {
 
                 var files = {};
                 var service = {};
@@ -21,6 +21,7 @@
                 var resource = null;
                 var header = {};
                 var repository = null;
+                var auth = null;
 
                  var copychildrenPath = childrenPath;
 
@@ -61,13 +62,35 @@
 
                 function loadConfigData() {
                     if ($window.localStorage) {
-                       header = { 'X-User-Access-Key': $window.localStorage.getItem("key"), 'X-User-Access-Token': $window.localStorage.getItem("token") };
-                       server =  $window.localStorage.getItem("store_server");
-                       resource = $window.localStorage.getItem("store_resource");
-                       repository = $window.localStorage.getItem("store_repository");
+                       var key = $window.localStorage.getItem("key");
+                       var token = $window.localStorage.getItem("token");
+                     if (key && token) {
+                         header = { 'X-User-Access-Key': key, 'X-User-Access-Token': token };
+                         server = $window.localStorage.getItem("store_server");
+                         resource = $window.localStorage.getItem("store_resource");
+                         repository = $window.localStorage.getItem("store_repository");
+                         auth = $window.localStorage.getItem("store_auth");
+                         $http({
+                             method: 'POST',
+                             data: '',
+                             url: server + auth,
+                             headers: { 'X-User-Access-Key': key, 'X-User-Access-Token': token },
+                             withCredentials: false
+                         }).success(function (data, status) {
+                         }).error(function (data,status) {
+                             $rootScope.$broadcast('event:notification',
+                                     {message: 'API Key or Token not exists', expires: true});
+                             $window.location.href = '/config.html';
+                         });
+                     } else {
+                         $rootScope.$broadcast('event:notification',
+                                 {message: 'API Key or Token missing', expires: true});
+                         $window.location.href = '/config.html';
+                     }
+
                     }
                     else {
-                        throw new Error('Tu Browser no soporta LocalStorage!');
+                        throw new Error('LocalStorage error!');
                     }
                 }
 
@@ -93,7 +116,8 @@
                         deferred.resolve(rootFS);
                         setTimeout(putColors, 100)
                     }).error(function () {
-                           //$window.location.href = "/login.html";
+                        $rootScope.$broadcast('event:notification',
+                                {message: 'Error connecting to Store Server', expires: true});
                         });
                     return deferred.promise;
                 };
@@ -101,7 +125,9 @@
                 function errorFunction(data, status, headers, config) {
                     //console.log("errorFunction", data, status, headers, config);
                     if(status >= 401){
-                        //$window.location.href = "/login.html";
+                        $window.location.href = "/config.html";
+                        $rootScope.$broadcast('event:notification',
+                                {message: 'Error connecting to Store Server', expires: true});
                     }
                 }
 
